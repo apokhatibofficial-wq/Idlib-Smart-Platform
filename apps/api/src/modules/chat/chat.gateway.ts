@@ -10,6 +10,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
+import { PrismaService } from '../../prisma/prisma.service';
 
 interface WsTicketPayload {
   sub: string;
@@ -37,6 +38,7 @@ export class ChatGateway implements OnGatewayConnection {
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   handleConnection(client: AuthedSocket) {
@@ -55,11 +57,20 @@ export class ChatGateway implements OnGatewayConnection {
   }
 
   @SubscribeMessage('join')
-  handleJoin(
+  async handleJoin(
     @ConnectedSocket() client: AuthedSocket,
     @MessageBody() data: { conversationId: string },
   ) {
     if (!client.data.userId || !data?.conversationId) return;
+    // Room membership must mirror ChatService's REST-side checks — without this,
+    // any authenticated socket could join an arbitrary conversation room and
+    // silently receive its live messages.
+    const participant = await this.prisma.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: { conversationId: data.conversationId, userId: client.data.userId },
+      },
+    });
+    if (!participant) return;
     void client.join(data.conversationId);
   }
 

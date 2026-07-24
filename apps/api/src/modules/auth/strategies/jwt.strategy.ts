@@ -32,6 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       ]),
       ignoreExpiration: false,
       secretOrKey: config.get<string>('jwt.accessSecret')!,
+      algorithms: ['HS256'],
     });
   }
 

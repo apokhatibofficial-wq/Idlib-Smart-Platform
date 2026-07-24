@@ -95,7 +95,8 @@ export class ComplaintsService {
       include: { attachments: true, statusEvents: { orderBy: { createdAt: 'asc' } } },
     });
     if (!complaint) throw new NotFoundException('البلاغ غير موجود');
-    if (requester.role === Role.CITIZEN && complaint.citizenId !== requester.id) {
+    const isOwner = complaint.citizenId === requester.id;
+    if (requester.role !== Role.ADMIN && !isOwner) {
       throw new ForbiddenException();
     }
     return this.toDto(complaint, requester.role);
