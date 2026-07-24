@@ -1,0 +1,37 @@
+name: idlib-smart-platform
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-idlib}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-idlib_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-idlib_smart_platform}
+    ports:
+      - '5432:5432'
+    volumes:
+      - idlib_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-idlib}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - '6379:6379'
+    volumes:
+      - idlib_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  idlib_postgres_data:
+  idlib_redis_data:

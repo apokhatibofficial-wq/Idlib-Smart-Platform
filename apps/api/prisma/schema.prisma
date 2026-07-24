@@ -1,0 +1,492 @@
+// Idlib Smart Platform — database schema
+// PostgreSQL via Prisma ORM. See README.md for the ERD overview.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  CITIZEN
+  MERCHANT
+  ADMIN
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum OtpPurpose {
+  SIGNUP_VERIFICATION
+  LOGIN_MFA
+}
+
+enum ComplaintCategory {
+  ROADS
+  CLEANLINESS
+  PRICING
+  BRIBERY
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ComplaintStatus {
+  UNDER_REVIEW
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum AttachmentKind {
+  PHOTO
+  VIDEO
+}
+
+enum StoreCategory {
+  FOOD
+  CLOTHES
+  ELECTRONICS
+  HEALTH
+  OTHER
+}
+
+enum ProductAvailability {
+  AVAILABLE
+  OUT_OF_STOCK
+}
+
+enum OrderStatus {
+  NEW
+  PREPARING
+  DELIVERED
+  CANCELLED
+}
+
+enum CouponStatus {
+  PENDING_APPROVAL
+  PUBLISHED
+  REJECTED
+}
+
+enum BusinessAccountStatus {
+  PENDING_PAYMENT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum ConversationType {
+  DIRECT
+  COMPLAINT_THREAD
+  SUPPORT
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Access
+// ---------------------------------------------------------------------------
+
+model User {
+  id               String       @id @default(cuid())
+  email            String       @unique
+  username         String       @unique
+  fullName         String
+  phone            String?
+  passwordHash     String?
+  authProvider     AuthProvider @default(LOCAL)
+  googleId         String?      @unique
+  role             Role         @default(CITIZEN)
+  isActive         Boolean      @default(true)
+  emailVerifiedAt  DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  otpCodes              OtpCode[]
+  passwordResetTokens   PasswordResetToken[]
+  refreshTokens         RefreshToken[]
+  complaints            Complaint[]           @relation("ComplaintCitizen")
+  complaintStatusEvents ComplaintStatusEvent[] @relation("ComplaintStatusActor")
+  store                 Store?
+  orders                Order[]
+  businessAccountRequests BusinessAccountRequest[] @relation("BizApplicant")
+  reviewedBizRequests   BusinessAccountRequest[] @relation("BizReviewer")
+  conversations         ConversationParticipant[]
+  messages              Message[]
+  pushSubscriptions     PushSubscription[]
+  auditLogs             AuditLog[]
+  assistantInteractions AssistantInteraction[]
+  publishedNews         NewsItem[]
+  approvedCoupons       Coupon[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  userAgent  String?
+  ip         String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model OtpCode {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose    OtpPurpose @default(SIGNUP_VERIFICATION)
+  codeHash   String
+  attempts   Int        @default(0)
+  maxAttempts Int       @default(5)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([userId, purpose])
+  @@map("otp_codes")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([action])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Complaints
+// ---------------------------------------------------------------------------
+
+model Complaint {
+  id             String            @id @default(cuid())
+  sequenceNumber Int               @default(autoincrement())
+  citizenId      String
+  citizen        User              @relation("ComplaintCitizen", fields: [citizenId], references: [id], onDelete: Cascade)
+  category       ComplaintCategory
+  status         ComplaintStatus   @default(UNDER_REVIEW)
+  priority       ComplaintPriority @default(MEDIUM)
+  description    String
+  locationLabel  String?
+  latitude       Decimal?          @db.Decimal(9, 6)
+  longitude      Decimal?          @db.Decimal(9, 6)
+
+  // Bribery-only fields — encrypted at rest (see CryptoService), nullable otherwise
+  employeeNameEnc String?
+  witness1Enc     String?
+  witness2Enc     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments    ComplaintAttachment[]
+  statusEvents   ComplaintStatusEvent[]
+  conversation   Conversation?
+
+  @@index([citizenId])
+  @@index([status])
+  @@index([category])
+  @@map("complaints")
+}
+
+model ComplaintAttachment {
+  id          String         @id @default(cuid())
+  complaintId String
+  complaint   Complaint      @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  kind        AttachmentKind
+  url         String
+  mimeType    String
+  sizeBytes   Int
+  createdAt   DateTime       @default(now())
+
+  @@index([complaintId])
+  @@map("complaint_attachments")
+}
+
+model ComplaintStatusEvent {
+  id          String          @id @default(cuid())
+  complaintId String
+  complaint   Complaint       @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  status      ComplaintStatus
+  note        String?
+  changedById String?
+  changedBy   User?           @relation("ComplaintStatusActor", fields: [changedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+
+  @@index([complaintId])
+  @@map("complaint_status_events")
+}
+
+// ---------------------------------------------------------------------------
+// Marketplace
+// ---------------------------------------------------------------------------
+
+model Store {
+  id                String        @id @default(cuid())
+  ownerId           String        @unique
+  owner             User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name              String
+  category          StoreCategory
+  description       String?
+  logoUrl           String?
+  coverImageUrl     String?
+  ratingAvg         Decimal       @default(0) @db.Decimal(2, 1)
+  ratingCount       Int           @default(0)
+  deliveryAvailable Boolean       @default(false)
+  isActive          Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  products Product[]
+  orders   Order[]
+  coupons  Coupon[]
+  businessAccountRequest BusinessAccountRequest?
+
+  @@index([category])
+  @@map("stores")
+}
+
+model Product {
+  id           String              @id @default(cuid())
+  storeId      String
+  store        Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  price        Decimal             @db.Decimal(12, 2)
+  currency     String              @default("SYP")
+  availability ProductAvailability @default(AVAILABLE)
+  imageUrl     String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  orders Order[]
+
+  @@index([storeId])
+  @@map("products")
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  sequenceNumber Int         @default(autoincrement())
+  storeId        String
+  store          Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  customerId     String
+  customer       User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  quantity       Int         @default(1)
+  status         OrderStatus @default(NEW)
+  note           String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([storeId])
+  @@index([customerId])
+  @@map("orders")
+}
+
+model Coupon {
+  id             String       @id @default(cuid())
+  storeId        String
+  store          Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  code           String       @unique
+  percentOff     Int
+  status         CouponStatus @default(PENDING_APPROVAL)
+  approvedById   String?
+  approvedBy     User?        @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([storeId])
+  @@map("coupons")
+}
+
+// ---------------------------------------------------------------------------
+// Business account conversion
+// ---------------------------------------------------------------------------
+
+model BusinessAccountRequest {
+  id                   String                 @id @default(cuid())
+  applicantId          String
+  applicant            User                   @relation("BizApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+  businessName         String
+  registrationNumber   String
+  phone                String
+  category             StoreCategory          @default(OTHER)
+  logoUrl              String?
+  photoUrls            String[]               @default([])
+  description           String
+  firstProductName     String
+  firstProductPrice    Decimal                @db.Decimal(12, 2)
+  firstProductAvailable ProductAvailability   @default(AVAILABLE)
+  feeUsd               Decimal                @default(10) @db.Decimal(10, 2)
+  status               BusinessAccountStatus  @default(PENDING_PAYMENT)
+  paidAt               DateTime?
+  reviewedById         String?
+  reviewedBy           User?                  @relation("BizReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt           DateTime?
+  rejectionReason      String?
+  resultingStoreId     String?                @unique
+  resultingStore       Store?                 @relation(fields: [resultingStoreId], references: [id], onDelete: SetNull)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@index([status])
+  @@map("business_account_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
+
+model Conversation {
+  id                String            @id @default(cuid())
+  type              ConversationType  @default(DIRECT)
+  relatedComplaintId String?          @unique
+  relatedComplaint  Complaint?        @relation(fields: [relatedComplaintId], references: [id], onDelete: SetNull)
+  title             String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String?
+  sender         User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  body           String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+// ---------------------------------------------------------------------------
+// Content: news & alerts
+// ---------------------------------------------------------------------------
+
+model NewsItem {
+  id          String   @id @default(cuid())
+  title       String
+  body        String?
+  tag         String   @default("أخبار عامة")
+  imageUrl    String?
+  authorId    String?
+  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([publishedAt])
+  @@map("news_items")
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  text      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("alerts")
+}
+
+// ---------------------------------------------------------------------------
+// AI Assistant (Idlib-governorate-scoped Q&A)
+// ---------------------------------------------------------------------------
+
+model AssistantInteraction {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  question      String
+  matchedIntent String?
+  answer        String
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@map("assistant_interactions")
+}
+
+// ---------------------------------------------------------------------------
+// Push notifications
+// ---------------------------------------------------------------------------
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}

@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+!apps/*/.env.example
+
+# Prisma
+apps/api/prisma/migrations/dev/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# PWA generated
+apps/web/public/sw.js.map
+apps/web/public/workbox-*.js
+
+# Uploads (local dev storage)
+apps/api/uploads/
+apps/api/storage/
+
+# Misc
+*.pem
+.turbo/
+next-env.d.ts
