@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import { tahrir } from '@/lib/fonts';
 import { getServerUser } from '@/lib/server-auth';
 import { Providers } from '@/components/providers';
@@ -37,12 +38,14 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const user = await getServerUser();
+  const [user, nonce] = await Promise.all([getServerUser(), headers().then((h) => h.get('x-nonce') ?? undefined)]);
 
   return (
     <html lang="ar" dir="rtl" className={`${tahrir.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full bg-cream text-ink">
-        <Providers initialUser={user}>{children}</Providers>
+        <Providers initialUser={user} nonce={nonce}>
+          {children}
+        </Providers>
         <ServiceWorkerRegistrar />
       </body>
     </html>

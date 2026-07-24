@@ -9,6 +9,7 @@ import { initialOf } from '@/lib/format';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Avatar } from '@/components/ui/avatar';
 import { ChangePasswordDialog } from '@/components/citizen/change-password-dialog';
+import { NotificationToggle } from '@/components/citizen/notification-toggle';
 
 const MENU_ITEMS = [
   { label: 'تعديل البيانات', href: '/profile/edit' },
@@ -80,6 +81,10 @@ export default function ProfilePage() {
       >
         تسجيل الخروج
       </button>
+
+      <div className="flex justify-center">
+        <NotificationToggle />
+      </div>
 
       <ChangePasswordDialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen} />
     </div>

@@ -18,6 +18,15 @@ export class ApiError extends Error {
   }
 }
 
+/** Thrown when `fetch` itself fails (offline, DNS, connection reset) — distinct
+ * from ApiError, which means the server was reached and returned an error. */
+export class NetworkError extends Error {
+  constructor() {
+    super('تعذّر الاتصال بالخادم — تحقّق من اتصالك بالإنترنت');
+    this.name = 'NetworkError';
+  }
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
@@ -59,13 +68,17 @@ async function rawRequest(path: string, options: RequestOptions): Promise<Respon
     }
   }
 
-  return fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body,
-    credentials: 'same-origin',
-    signal: options.signal,
-  });
+  try {
+    return await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body,
+      credentials: 'same-origin',
+      signal: options.signal,
+    });
+  } catch {
+    throw new NetworkError();
+  }
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {

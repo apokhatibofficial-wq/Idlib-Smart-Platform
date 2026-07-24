@@ -7,7 +7,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { api, ApiError } from '@/lib/api-client';
+import { api, ApiError, NetworkError } from '@/lib/api-client';
+import { queueComplaintForSync } from '@/lib/offline-queue';
 import { createComplaintSchema, type ComplaintFormInput } from '@/lib/validation/complaint';
 import { PRIORITY_OPTIONS } from '@/lib/complaints-ui';
 import { cn } from '@/lib/utils';
@@ -19,12 +20,18 @@ import { UploadSlot } from '@/components/shared/upload-slot';
 import type { Complaint, ComplaintCategory, ComplaintCategoryOption, UploadedFile } from '@/types/api';
 
 function useGeolocation() {
-  const [state, setState] = useState<{ status: 'pending' | 'ok' | 'denied'; lat?: number; lng?: number }>(() => ({
-    status: typeof navigator !== 'undefined' && 'geolocation' in navigator ? 'pending' : 'denied',
-  }));
+  // Initial state must be identical on server and client (no `typeof navigator`
+  // branching here) or React's hydration will detect a text mismatch on this
+  // subtree and discard the server-rendered HTML for it.
+  const [state, setState] = useState<{ status: 'pending' | 'ok' | 'denied'; lat?: number; lng?: number }>({
+    status: 'pending',
+  });
 
   useEffect(() => {
-    if (!('geolocation' in navigator)) return;
+    if (!('geolocation' in navigator)) {
+      const id = setTimeout(() => setState({ status: 'denied' }), 0);
+      return () => clearTimeout(id);
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => setState({ status: 'ok', lat: pos.coords.latitude, lng: pos.coords.longitude }),
       () => setState({ status: 'denied' }),
@@ -44,6 +51,7 @@ function ComplaintForm() {
   const [video, setVideo] = useState<UploadedFile | null>(null);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [submittedDisplayId, setSubmittedDisplayId] = useState<string | null>(null);
+  const [queuedOffline, setQueuedOffline] = useState(false);
 
   const { data: categories } = useQuery({
     queryKey: ['complaints', 'categories'],
@@ -62,7 +70,7 @@ function ComplaintForm() {
       const attachments = [photo, video]
         .filter((f): f is UploadedFile => !!f)
         .map((f) => ({ url: f.url, kind: f.kind === 'image' ? 'PHOTO' : 'VIDEO', mimeType: f.mimeType, sizeBytes: f.sizeBytes }));
-      return api.post<Complaint>('/complaints', {
+      const payload = {
         category,
         priority: values.priority,
         description: values.description,
@@ -72,9 +80,22 @@ function ComplaintForm() {
         latitude: geo.status === 'ok' ? geo.lat : undefined,
         longitude: geo.status === 'ok' ? geo.lng : undefined,
         attachments: attachments.length ? attachments : undefined,
+      };
+      return api.post<Complaint>('/complaints', payload).catch(async (error: unknown) => {
+        // Offline: queue the submission for the service worker's Background Sync
+        // to replay once connectivity returns, instead of losing the report.
+        if (error instanceof NetworkError) {
+          await queueComplaintForSync(payload);
+          return null;
+        }
+        throw error;
       });
     },
     onSuccess: (complaint) => {
+      if (!complaint) {
+        setQueuedOffline(true);
+        return;
+      }
       setSubmittedId(complaint.id);
       setSubmittedDisplayId(complaint.displayId);
       void queryClient.invalidateQueries({ queryKey: ['complaints', 'mine'] });
@@ -83,6 +104,26 @@ function ComplaintForm() {
       toast.error(error instanceof ApiError ? error.message : 'تعذّر إرسال البلاغ، حاول مرة أخرى');
     },
   });
+
+  if (queuedOffline) {
+    return (
+      <div className="flex flex-col items-center gap-3.5 px-4 py-8 text-center">
+        <div className="flex size-14 items-center justify-center rounded-full border-[1.5px] border-gold text-[22px] font-extrabold text-gold-deep">
+          ✓
+        </div>
+        <h1 className="text-lg font-extrabold text-ink">تم حفظ البلاغ بلا اتصال</h1>
+        <p className="text-[13px] leading-7 text-gray-500">
+          سيتم إرسال بلاغك تلقائيًا فور عودة الاتصال بالإنترنت — لا داعٍ لإعادة المحاولة.
+        </p>
+        <Link
+          href="/complaints"
+          className="w-full rounded-[12px] border-[1.5px] border-gray-300 bg-white py-3.5 text-center text-[14.5px] font-extrabold text-ink"
+        >
+          العودة
+        </Link>
+      </div>
+    );
+  }
 
   if (submittedId && submittedDisplayId) {
     return (

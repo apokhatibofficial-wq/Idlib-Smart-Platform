@@ -40,6 +40,8 @@ export function proxy(request: NextRequest) {
     `img-src 'self' blob: data:`,
     `font-src 'self'`,
     `connect-src ${connectSrc}`,
+    `worker-src 'self'`,
+    `manifest-src 'self'`,
     `object-src 'none'`,
     `base-uri 'self'`,
     `form-action 'self'`,

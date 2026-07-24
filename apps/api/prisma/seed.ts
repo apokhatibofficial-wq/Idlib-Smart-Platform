@@ -107,7 +107,12 @@ async function main() {
 
   const stores: Record<string, Awaited<ReturnType<typeof prisma.store.create>>> = {};
   for (const s of storeSeeds) {
-    const owner = await upsertUser({ email: s.email, username: s.username, fullName: s.owner, role: 'MERCHANT' });
+    const owner = await upsertUser({
+      email: s.email,
+      username: s.username,
+      fullName: s.owner,
+      role: 'MERCHANT',
+    });
     const store = await prisma.store.upsert({
       where: { ownerId: owner.id },
       update: {},
@@ -130,7 +135,11 @@ async function main() {
   // ---------------------------------------------------------------------
   await prisma.newsItem.createMany({
     data: [
-      { title: 'افتتاح جسر جديد يربط بين حي الزراعة وحي القصور', tag: 'أخبار عامة', authorId: admin.id },
+      {
+        title: 'افتتاح جسر جديد يربط بين حي الزراعة وحي القصور',
+        tag: 'أخبار عامة',
+        authorId: admin.id,
+      },
       { title: 'حملة تعقيم شاملة في الأسواق الشعبية هذا الأسبوع', tag: 'صحة', authorId: admin.id },
       { title: 'جدول مواعيد صرف المساعدات الشهرية لشهر آب', tag: 'إعلان رسمي', authorId: admin.id },
     ],
@@ -149,12 +158,26 @@ async function main() {
   // Complaints for the demo citizen
   // ---------------------------------------------------------------------
   const complaintSeeds = [
-    { category: 'ROADS' as const, status: 'RESOLVED' as const, description: 'حفرة كبيرة في شارع الزراعة تسبب أضرارًا للمركبات' },
-    { category: 'CLEANLINESS' as const, status: 'IN_PROGRESS' as const, description: 'تراكم النفايات في حي المدينة منذ عدة أيام' },
-    { category: 'PRICING' as const, status: 'UNDER_REVIEW' as const, description: 'رفع أسعار المواد الغذائية بشكل غير مبرر في سوق الهال' },
+    {
+      category: 'ROADS' as const,
+      status: 'RESOLVED' as const,
+      description: 'حفرة كبيرة في شارع الزراعة تسبب أضرارًا للمركبات',
+    },
+    {
+      category: 'CLEANLINESS' as const,
+      status: 'IN_PROGRESS' as const,
+      description: 'تراكم النفايات في حي المدينة منذ عدة أيام',
+    },
+    {
+      category: 'PRICING' as const,
+      status: 'UNDER_REVIEW' as const,
+      description: 'رفع أسعار المواد الغذائية بشكل غير مبرر في سوق الهال',
+    },
   ];
   for (const c of complaintSeeds) {
-    const existing = await prisma.complaint.findFirst({ where: { citizenId: citizen.id, description: c.description } });
+    const existing = await prisma.complaint.findFirst({
+      where: { citizenId: citizen.id, description: c.description },
+    });
     if (existing) continue;
     await prisma.complaint.create({
       data: {
@@ -184,7 +207,13 @@ async function main() {
     await prisma.coupon.upsert({
       where: { code: 'RAMADAN20' },
       update: {},
-      create: { storeId: shaam.id, code: 'RAMADAN20', percentOff: 20, status: 'PUBLISHED', approvedById: admin.id },
+      create: {
+        storeId: shaam.id,
+        code: 'RAMADAN20',
+        percentOff: 20,
+        status: 'PUBLISHED',
+        approvedById: admin.id,
+      },
     });
     await prisma.coupon.upsert({
       where: { code: 'NEWUSER10' },
@@ -197,13 +226,38 @@ async function main() {
   // Pending business account requests (for the admin review screen)
   // ---------------------------------------------------------------------
   const pendingBizSeeds = [
-    { email: 'khaled@mail.com', username: 'khaled.naasan', owner: 'خالد نعسان', biz: 'مخبز الأمل', category: 'FOOD' as const },
-    { email: 'rana@mail.com', username: 'rana.abdo', owner: 'رنا العبدو', biz: 'ملابس الفجر', category: 'CLOTHES' as const },
-    { email: 'wael@mail.com', username: 'wael.darwish', owner: 'وائل درويش', biz: 'مقهى الياسمين', category: 'FOOD' as const },
+    {
+      email: 'khaled@mail.com',
+      username: 'khaled.naasan',
+      owner: 'خالد نعسان',
+      biz: 'مخبز الأمل',
+      category: 'FOOD' as const,
+    },
+    {
+      email: 'rana@mail.com',
+      username: 'rana.abdo',
+      owner: 'رنا العبدو',
+      biz: 'ملابس الفجر',
+      category: 'CLOTHES' as const,
+    },
+    {
+      email: 'wael@mail.com',
+      username: 'wael.darwish',
+      owner: 'وائل درويش',
+      biz: 'مقهى الياسمين',
+      category: 'FOOD' as const,
+    },
   ];
   for (const b of pendingBizSeeds) {
-    const applicant = await upsertUser({ email: b.email, username: b.username, fullName: b.owner, role: 'CITIZEN' });
-    const existing = await prisma.businessAccountRequest.findFirst({ where: { applicantId: applicant.id } });
+    const applicant = await upsertUser({
+      email: b.email,
+      username: b.username,
+      fullName: b.owner,
+      role: 'CITIZEN',
+    });
+    const existing = await prisma.businessAccountRequest.findFirst({
+      where: { applicantId: applicant.id },
+    });
     if (existing) continue;
     await prisma.businessAccountRequest.create({
       data: {
@@ -226,7 +280,13 @@ async function main() {
   const pharmacyOwner = await prisma.user.findUnique({ where: { email: 'shifa@mail.com' } });
   if (pharmacyOwner) {
     const convo = await prisma.conversation.findFirst({
-      where: { type: 'DIRECT', AND: [{ participants: { some: { userId: citizen.id } } }, { participants: { some: { userId: pharmacyOwner.id } } }] },
+      where: {
+        type: 'DIRECT',
+        AND: [
+          { participants: { some: { userId: citizen.id } } },
+          { participants: { some: { userId: pharmacyOwner.id } } },
+        ],
+      },
     });
     if (!convo) {
       await prisma.conversation.create({

@@ -2,12 +2,6 @@
 
 import { useEffect } from 'react';
 
-/**
- * Registers the hand-written service worker (public/sw.js — see that file for the
- * offline caching, push notification, and background-sync implementation). Runs
- * as a regular external script via useEffect rather than an inline <script> tag,
- * so it works cleanly under the app's strict nonce-based CSP.
- */
 export function ServiceWorkerRegistrar() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
@@ -18,6 +12,13 @@ export function ServiceWorkerRegistrar() {
       });
     };
 
+    // `load` may already have fired by the time this effect runs (hydration
+    // often completes after window load), in which case the listener below
+    // would never fire — so register immediately in that case instead.
+    if (document.readyState === 'complete') {
+      register();
+      return;
+    }
     window.addEventListener('load', register);
     return () => window.removeEventListener('load', register);
   }, []);
