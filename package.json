@@ -23,5 +23,10 @@
     "db:seed": "npm run db:seed --workspace=apps/api",
     "docker:up": "docker compose up -d postgres redis",
     "docker:down": "docker compose down"
+  },
+  "overrides": {
+    "sharp": "^0.35.3",
+    "postcss": "^8.5.22",
+    "@hono/node-server": "^2.0.11"
   }
 }
