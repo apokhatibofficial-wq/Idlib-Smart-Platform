@@ -69,7 +69,7 @@ export interface Complaint {
   longitude: string | null;
   attachments: ComplaintAttachment[];
   statusEvents: ComplaintStatusEvent[];
-  citizen?: { fullName: string; email: string };
+  citizen?: { fullName: string; username?: string; email: string; phone?: string | null; createdAt?: string };
   employeeName?: string | null;
   witness1?: string | null;
   witness2?: string | null;

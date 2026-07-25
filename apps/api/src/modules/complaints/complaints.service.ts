@@ -83,7 +83,13 @@ export class ComplaintsService {
   async listAll(status?: ComplaintStatus) {
     const complaints = await this.prisma.complaint.findMany({
       where: status ? { status } : undefined,
-      include: { citizen: { select: { fullName: true, email: true } } },
+      include: {
+        citizen: {
+          select: { fullName: true, username: true, email: true, phone: true, createdAt: true },
+        },
+        attachments: true,
+        statusEvents: { orderBy: { createdAt: 'asc' } },
+      },
       orderBy: { createdAt: 'desc' },
     });
     return complaints.map((c) => this.toDto(c, Role.ADMIN));
@@ -163,7 +169,13 @@ export class ComplaintsService {
       updatedAt: Date;
       attachments?: { id: string; url: string; kind: string; mimeType: string }[];
       statusEvents?: { status: ComplaintStatus; note: string | null; createdAt: Date }[];
-      citizen?: { fullName: string; email: string };
+      citizen?: {
+        fullName: string;
+        username?: string;
+        email: string;
+        phone?: string | null;
+        createdAt?: Date;
+      };
     },
     viewerRole: Role,
   ) {
