@@ -32,14 +32,14 @@ async function main() {
   console.log('🌱 Seeding منصة إدلب الذكية...');
 
   const admin = await upsertUser({
-    email: 'admin@idlib-smart.sy',
+    email: 'admintest1@test.com',
     username: 'admin',
     fullName: 'سامر إدلبي',
     role: 'ADMIN',
   });
 
   const citizen = await upsertUser({
-    email: 'ahmad@mail.com',
+    email: 'admintest2@test.com',
     username: 'ahmad.idlib',
     fullName: 'أحمد الحلبي',
     role: 'CITIZEN',
@@ -51,7 +51,7 @@ async function main() {
   // ---------------------------------------------------------------------
   const storeSeeds = [
     {
-      email: 'shaam@mail.com',
+      email: 'admintest3@test.com',
       username: 'restaurant.shaam',
       owner: 'مالك مطعم بيت الشام',
       name: 'مطعم بيت الشام',
@@ -65,7 +65,7 @@ async function main() {
       ],
     },
     {
-      email: 'reem@mail.com',
+      email: 'admintest4@test.com',
       username: 'fashion.reem',
       owner: 'ريم — أزياء ريم',
       name: 'أزياء ريم',
@@ -78,7 +78,7 @@ async function main() {
       ],
     },
     {
-      email: 'alnoor@mail.com',
+      email: 'admintest5@test.com',
       username: 'electronics.alnoor',
       owner: 'مالك إلكترونيات النور',
       name: 'إلكترونيات النور',
@@ -91,7 +91,7 @@ async function main() {
       ],
     },
     {
-      email: 'shifa@mail.com',
+      email: 'admintest6@test.com',
       username: 'pharmacy.shifa',
       owner: 'صيدلانية صيدلية الشفاء',
       name: 'صيدلية الشفاء',
@@ -227,21 +227,21 @@ async function main() {
   // ---------------------------------------------------------------------
   const pendingBizSeeds = [
     {
-      email: 'khaled@mail.com',
+      email: 'admintest7@test.com',
       username: 'khaled.naasan',
       owner: 'خالد نعسان',
       biz: 'مخبز الأمل',
       category: 'FOOD' as const,
     },
     {
-      email: 'rana@mail.com',
+      email: 'admintest8@test.com',
       username: 'rana.abdo',
       owner: 'رنا العبدو',
       biz: 'ملابس الفجر',
       category: 'CLOTHES' as const,
     },
     {
-      email: 'wael@mail.com',
+      email: 'admintest9@test.com',
       username: 'wael.darwish',
       owner: 'وائل درويش',
       biz: 'مقهى الياسمين',
@@ -277,7 +277,7 @@ async function main() {
   // ---------------------------------------------------------------------
   // Direct chats (pharmacy + official directorate) for demo richness
   // ---------------------------------------------------------------------
-  const pharmacyOwner = await prisma.user.findUnique({ where: { email: 'shifa@mail.com' } });
+  const pharmacyOwner = await prisma.user.findUnique({ where: { email: 'admintest6@test.com' } });
   if (pharmacyOwner) {
     const convo = await prisma.conversation.findFirst({
       where: {
