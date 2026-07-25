@@ -3,9 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api, ApiError } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { BusinessAccountRequest, Coupon } from '@/types/api';
+import type { AdminStore, BusinessAccountRequest, Coupon } from '@/types/api';
 
 function usePendingBusiness() {
   const queryClient = useQueryClient();
@@ -48,9 +49,30 @@ function usePendingCoupons() {
   return { ...query, review };
 }
 
+function useStores() {
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: ['admin', 'stores'],
+    queryFn: () => api.get<AdminStore[]>('/admin/stores'),
+  });
+
+  const status = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      api.patch(`/admin/stores/${id}/status`, { isActive }),
+    onSuccess: (_data, variables) => {
+      toast.success(variables.isActive ? 'تم تفعيل المتجر' : 'تم إيقاف المتجر');
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'stores'] });
+    },
+    onError: (error: unknown) => toast.error(error instanceof ApiError ? error.message : 'تعذّر تنفيذ الإجراء'),
+  });
+
+  return { ...query, status };
+}
+
 export default function AdminBusinessPage() {
   const business = usePendingBusiness();
   const coupons = usePendingCoupons();
+  const stores = useStores();
 
   return (
     <div className="flex flex-col gap-8">
@@ -120,6 +142,49 @@ export default function AdminBusinessPage() {
                   className="rounded-[8px] border-[1.5px] border-red-100 px-3 py-1.5 text-xs font-extrabold text-red-600"
                 >
                   رفض
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-5">
+        <h2 className="text-lg font-extrabold text-ink">المتاجر</h2>
+        <div className="overflow-hidden rounded-[14px] bg-white">
+          {stores.isLoading && (
+            <div className="flex flex-col gap-px p-4">
+              <Skeleton className="h-12" />
+            </div>
+          )}
+          {stores.data?.length === 0 && <p className="py-8 text-center text-sm text-gray-500">لا توجد متاجر بعد</p>}
+          {stores.data?.map((store) => (
+            <div key={store.id} className="flex items-center justify-between border-b border-gray-100 px-4.5 py-3.5 last:border-0">
+              <div>
+                <div className="text-[13.5px] font-bold">{store.name}</div>
+                <div className="text-[11.5px] text-gray-500">
+                  {store.owner.fullName} · {store.categoryLabel}
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={cn(
+                    'rounded-full px-3 py-1 text-[11px] font-extrabold',
+                    store.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600',
+                  )}
+                >
+                  {store.isActive ? 'نشط' : 'موقوف'}
+                </span>
+                <button
+                  type="button"
+                  disabled={stores.status.isPending}
+                  onClick={() => stores.status.mutate({ id: store.id, isActive: !store.isActive })}
+                  className={cn(
+                    'rounded-[8px] border-[1.5px] px-3 py-1.5 text-[11.5px] font-extrabold disabled:opacity-40',
+                    store.isActive ? 'border-red-100 text-red-600 hover:bg-red-100' : 'border-green-700 text-green-700 hover:bg-green-100',
+                  )}
+                >
+                  {store.isActive ? 'إيقاف' : 'تفعيل'}
                 </button>
               </div>
             </div>

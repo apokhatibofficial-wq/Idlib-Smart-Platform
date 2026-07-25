@@ -248,7 +248,12 @@ export interface AdminUser {
   username: string;
   fullName: string;
   role: Role;
+  isActive: boolean;
   createdAt: string;
+}
+
+export interface AdminStore extends Store {
+  owner: { fullName: string; email: string };
 }
 
 export interface AuditLogEntry {

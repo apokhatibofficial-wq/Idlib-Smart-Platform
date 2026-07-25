@@ -1,10 +1,12 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -14,6 +16,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Audit } from '../../common/decorators/audit.decorator';
 import type { AuthenticatedUser } from '../../common/types/express-request';
 import { AdminService } from './admin.service';
+import { UpdateActiveStatusDto } from './dto/update-status.dto';
 
 @Controller('admin')
 @Roles(Role.ADMIN)
@@ -28,6 +31,33 @@ export class AdminController {
   @Get('users')
   listUsers() {
     return this.admin.listUsers();
+  }
+
+  @Audit('user.status_update')
+  @HttpCode(HttpStatus.OK)
+  @Patch('users/:id/status')
+  updateUserStatus(
+    @Param('id') id: string,
+    @CurrentUser() admin: AuthenticatedUser,
+    @Body() dto: UpdateActiveStatusDto,
+  ) {
+    return this.admin.updateUserStatus(id, admin.id, dto.isActive);
+  }
+
+  @Get('stores')
+  listStores() {
+    return this.admin.listStores();
+  }
+
+  @Audit('store.status_update')
+  @HttpCode(HttpStatus.OK)
+  @Patch('stores/:id/status')
+  updateStoreStatus(
+    @Param('id') id: string,
+    @CurrentUser() admin: AuthenticatedUser,
+    @Body() dto: UpdateActiveStatusDto,
+  ) {
+    return this.admin.updateStoreStatus(id, admin.id, dto.isActive);
   }
 
   @Get('logs')
