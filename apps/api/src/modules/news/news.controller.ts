@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -66,5 +76,13 @@ export class NewsController {
     @Body() dto: UpdateAlertDto,
   ) {
     return this.news.updateAlert(id, admin.id, dto);
+  }
+
+  @Roles(Role.ADMIN)
+  @Audit('alert.delete')
+  @HttpCode(HttpStatus.OK)
+  @Delete('alerts/:id')
+  deleteAlert(@Param('id') id: string, @CurrentUser() admin: AuthenticatedUser) {
+    return this.news.deleteAlert(id, admin.id);
   }
 }

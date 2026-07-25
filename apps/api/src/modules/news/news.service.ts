@@ -95,4 +95,18 @@ export class NewsService {
     });
     return updated;
   }
+
+  async deleteAlert(id: string, adminId: string) {
+    const existing = await this.prisma.alert.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('التنبيه غير موجود');
+
+    await this.prisma.alert.delete({ where: { id } });
+    await this.auditLog.log({
+      actorId: adminId,
+      action: 'alert.delete',
+      targetType: 'alert',
+      targetId: id,
+    });
+    return { deleted: true };
+  }
 }

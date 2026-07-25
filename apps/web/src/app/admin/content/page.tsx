@@ -131,6 +131,16 @@ function AlertDialog({
     onError: (error: unknown) => toast.error(error instanceof ApiError ? error.message : 'تعذّر حفظ التنبيه'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => api.del(`/alerts/${editing!.id}`),
+    onSuccess: () => {
+      toast.success('تم حذف التنبيه');
+      void queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      onOpenChange(false);
+    },
+    onError: (error: unknown) => toast.error(error instanceof ApiError ? error.message : 'تعذّر حذف التنبيه'),
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -189,6 +199,17 @@ function AlertDialog({
             <Button type="submit" disabled={mutation.isPending} className="h-auto rounded-[10px] py-3 text-sm font-extrabold">
               {mutation.isPending ? 'جارٍ الحفظ...' : editing ? 'حفظ التعديل' : 'نشر'}
             </Button>
+            {editing && (
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate()}
+                className="h-auto rounded-[10px] py-3 text-sm font-extrabold"
+              >
+                {deleteMutation.isPending ? 'جارٍ الحذف...' : 'حذف التنبيه'}
+              </Button>
+            )}
           </form>
         </Form>
       </DialogContent>

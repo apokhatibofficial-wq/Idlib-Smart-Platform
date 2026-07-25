@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
@@ -19,7 +20,9 @@ export default function HomePage() {
     queryFn: () => api.get<Alert[]>('/alerts'),
   });
 
-  const breakingNews = news?.[0] ? `عاجل: ${news[0].title}` : 'مرحبًا بك في منصة إدلب الذكية — تابع آخر الأخبار والخدمات هنا';
+  const tickerItems = alerts?.length
+    ? alerts.map((a) => a.text)
+    : [news?.[0] ? `عاجل: ${news[0].title}` : 'مرحبًا بك في منصة إدلب الذكية — تابع آخر الأخبار والخدمات هنا'];
 
   return (
     <div className="flex flex-col gap-4 px-4.5 pt-4 pb-6">
@@ -27,7 +30,16 @@ export default function HomePage() {
         <div className="z-10 flex h-full flex-none items-center bg-red-600 px-3 text-[11.5px] font-extrabold text-white">
           عاجل
         </div>
-        <div className="animate-ticker pe-5 text-[12.5px] font-semibold whitespace-nowrap text-white">{breakingNews}</div>
+        <div className="animate-ticker flex items-center gap-3 pe-5 text-[12.5px] font-semibold whitespace-nowrap text-white">
+          {tickerItems.map((text, i) => (
+            <span key={i} className="flex items-center gap-3">
+              {i > 0 && (
+                <Image src="/images/logo-fazaa.png" alt="" width={16} height={16} className="shrink-0 object-contain" />
+              )}
+              <span>{text}</span>
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="no-scrollbar flex gap-2.5 overflow-x-auto pb-0.5">
