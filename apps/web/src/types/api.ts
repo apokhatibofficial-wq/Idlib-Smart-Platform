@@ -199,6 +199,9 @@ export interface NewsItem {
 export interface Alert {
   id: string;
   text: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------

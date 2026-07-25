@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api-client';
+import { useAuth } from '@/components/providers/auth-provider';
 import { cn } from '@/lib/utils';
 
 export interface DashboardNavItem {
@@ -22,6 +25,18 @@ export function DashboardShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { clear } = useAuth();
+
+  const logoutMutation = useMutation({
+    mutationFn: () => api.post('/auth/logout'),
+    onSuccess: () => {
+      clear();
+      queryClient.clear();
+      router.replace('/login');
+    },
+  });
 
   return (
     <div className="flex min-h-dvh justify-center bg-gray-100 p-6">
@@ -46,6 +61,14 @@ export function DashboardShell({
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            className="mt-auto rounded-[10px] px-3.5 py-2.5 text-right text-[13px] font-bold text-white/[.72] transition-colors hover:bg-white/[.08] hover:text-white"
+          >
+            تسجيل الخروج
+          </button>
         </aside>
         <div className="flex-1 overflow-y-auto bg-gray-100 p-8">{children}</div>
       </div>
